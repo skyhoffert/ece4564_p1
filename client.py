@@ -22,11 +22,11 @@ parser.add_argument('-z', type=int, required=True, help='The size of the socket'
 parser.add_argument('-t', type=str, required=True, help='Hashtag to be watched', dest='hashtag')
 arguments = parser.parse_args()
 
-# DEBUG
-print(arguments.host)
-print(arguments.port)
-print(arguments.size)
-print(arguments.hashtag)
+#print(arguments.host)
+#print(arguments.port)
+#print(arguments.size)
+#print(arguments.hashtag)
+
 
 # declaring variables IGNORED
 host = arguments.host
