@@ -9,7 +9,6 @@ from subprocess import call
 from .serverKeys import *
 import sys
 
-
 # Function takes in plain text and returns plaintext too
 def getfromwolfram(question):
 
@@ -41,7 +40,15 @@ def text2speech(text):
 	call([cmd_begin + text + cmd_end], shell=True)
 
 
-port = 5432
+parser = argparse.ArgumentParser(description='Client program of Assignment 1.')
+parser.add_argument('-p', type=int, required=True, help='The port number of the connection', dest='port')
+parser.add_argument('-z', type=int, required=True, help='The size of the socket', dest='size')
+parser.add_argument('-b', type=str, required=True, help='Server backlog', dest='backlog')
+arguments = parser.parse_args()
+
+port = arguments.port
+size = arguments.size
+backlog = arguments.backlog
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print("[Checkpoint] Created socket at 0.0.0.0 on port " + port)
 s.bind(('',port))
@@ -51,7 +58,7 @@ while True:
 	client, address = s.accept()
 	print("[Checkpoint] Accepted client connection from"
 		  + address[0] + " on port " + address[1])
-	packed_data = client.recv(1024)
+	packed_data = client.recv(size)
 	data = pickle.loads(packed_data)
 	print("[Checkpoint] Received data: " + data[1])
 	hasher = hashlib.md5()
