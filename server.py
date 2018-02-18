@@ -1,13 +1,11 @@
 import wolframalpha as wa
-import clientKeys as ck
 import serverKeys as api
 import socket
 import pickle
 from cryptography.fernet import Fernet
 import hashlib
 from subprocess import call
-from .serverKeys import *
-import sys
+import argparse
 
 # Function takes in plain text and returns plaintext too
 def getfromwolfram(question):
@@ -51,9 +49,9 @@ size = arguments.size
 backlog = arguments.backlog
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print("[Checkpoint] Created socket at 0.0.0.0 on port " + port)
-s.bind(('',port))
+s.bind(('', port))
 while True:
-	s.listen(5)
+	s.listen(backlog)
 	print("[Checkpoint] Listening for client connections")
 	client, address = s.accept()
 	print("[Checkpoint] Accepted client connection from"
@@ -83,5 +81,6 @@ while True:
 	checksum = hashlib.md5().update(answer).hexDigest()
 	payload = (answer, checksum)
 	payload = pickle.dumps(payload)
+	print("[Checkpoint] Sending data: " + payload)
 	client.send(payload)
 	client.close()
