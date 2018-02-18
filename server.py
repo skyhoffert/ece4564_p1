@@ -1,15 +1,12 @@
 import wolframalpha as wa
-<<<<<<< HEAD
 import clientKeys as ck
 import serverKeys as api
-=======
 import socket
 import pickle
 from cryptography.fernet import Fernet
 import hashlib
 from subprocess import call
 from .serverKeys import *
->>>>>>> 1b5275493a5b996f1621d4a483d8431f77c56fee
 import sys
 
 
