@@ -6,6 +6,9 @@ A simple echo client
 import socket
 import sys
 import argparse
+import os
+import tweepy
+from clientKeys import *
 
 #PARSE THEM ARGS MATEY!
 
@@ -16,6 +19,7 @@ parser.add_argument('-z', type=int, required=True, help='The size of the socket'
 parser.add_argument('-t', type=str, required=True, help='Hashtag to be watched', dest='hashtag')
 arguments = parser.parse_args()
 
+# DEBUG
 print(arguments.host)
 print(arguments.port)
 print(arguments.size)
@@ -27,22 +31,6 @@ port = arguments.port
 size = arguments.size
 tag  = arguments.hashtag
 
-# parse arguments
-#for i in range(1, len(sys.argv)):
-#    print('arg ', i, ': ', sys.argv[i])
-#    if '-s' in sys.argv[i]:
-#        host = sys.argv[i+1]
-#        i += 1
-#    if '-p' in sys.argv[i]:
-#        port = int(sys.argv[i+1])
-#        i += 1
-#    if '-z' in sys.argv[i]:
-#        size = int(sys.argv[i+1])
-#        i += 1
-#    if '-t' in sys.argv[i]:
-#        tag = sys.argv[i+1]
-#        i += 1
-
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # set up authentication with clientKeys file
@@ -50,13 +38,6 @@ auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 # connect to the API
 api = tweepy.API(auth)
-
-# create listener
-l = MyStreamListener()
-mystream = tweepy.Stream(auth = api.auth, listener = l)
-# tell the listener to track the indicated search string
-# add 'async=True' for non-blocking call
-mystream.filter(track=[search_str])
 
 # Tweepy stream listener class
 class MyStreamListener(tweepy.StreamListener):
@@ -75,7 +56,16 @@ class MyStreamListener(tweepy.StreamListener):
         s.send(res)
 
         print('Receiving data with size ', size)
-
         data = s.recv(size)
         s.close()
-        print('Received:', data)
+        print('Received: ', data)
+
+        print('Speaking question')
+        os.system("espeak {}".format(data))
+
+# create listener
+l = MyStreamListener()
+mystream = tweepy.Stream(auth = api.auth, listener = l)
+# tell the listener to track the indicated search string
+# add 'async=True' for non-blocking call
+mystream.filter(track=[tag])
