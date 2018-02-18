@@ -1,5 +1,6 @@
 import wolframalpha as wa
 import clientKeys as ck
+import serverKeys as api
 import sys
 
 # Function takes in plain text and returns plaintext too
