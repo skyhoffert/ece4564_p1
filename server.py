@@ -61,18 +61,27 @@ while True:
 	packed_data = client.recv(size)
 	data = pickle.loads(packed_data)
 	print("[Checkpoint] Received data: " + data[1])
-	hasher = hashlib.md5()
-	hasher.update(data[1])
-	checksum = hasher.hexDigest()
+	hashlib.md5().update(data[1])
+	checksum = hashlib.md5().update(data[1]).hexDigest()
 	if checksum == data[2]:
 		print("[Checkpoint] Checksum is VALID")
 	else:
 		print("[Checkpoint] Checksum is NOT VALID")
 		continue
 	f = Fernet(data[0])
-	question = f.decrypt(data[1])
+	question = f.decrypt(data[1]).decode('utf-8')
 	print("[Checkpoint] Decrypt: Using Key: " + data[0] + " | Plaintext: " + question)
 	print("[Checkpoint] Speaking: " + question)
 	parsed = question.replace("$", "\$").replace("\"", "\\\"")
 	text2speech(question)
-
+	print("[Checkpoint] Sending question to Wolframalpha: " + question)
+	answer = getfromwolfram(question)
+	print("[Checkpoint] Received answer from Wolframalpha: " + answer)
+	answer = f.encrypt(answer.encode('utf-8'))
+	print("[Checkpoint] Encrypt: Generated Key: " + data[0]
+		  + " | Ciphertext: " + answer)
+	checksum = hashlib.md5().update(answer).hexDigest()
+	payload = (answer, checksum)
+	payload = pickle.dumps(payload)
+	client.send(payload)
+	client.close()
