@@ -8,6 +8,9 @@ import sys
 import argparse
 import os
 import tweepy
+import hashlib
+import pickle
+from cryptography.fernet import Fernet
 from clientKeys import *
 
 #PARSE THEM ARGS MATEY!
@@ -47,7 +50,39 @@ class MyStreamListener(tweepy.StreamListener):
         # get the string result
         res = status.text
         # Cut out the substring so we have just a raw question
-        res = res.replace(search_str, '')
+        res = res.replace(tag, '')
+
+        key = Fernet.generate_key()
+
+        print('Creating crypto key: ', key)
+        f = Fernet(key)
+
+        # encrypt
+        # convert text question to bytes object
+        text = bytes(res, 'utf-8')
+        print('text to be sent: ', text)
+        token = f.encrypt(text)
+
+        print('token: ', token)
+
+        # hash
+        hasher = hashlib.md5()
+        hasher.update(token)
+        checksum = hasher.hexdigest()
+
+        print('checksum: ', checksum)
+
+        # channel
+        val = (key, token, checksum)
+
+        val = pickle.dumps(val)
+
+        print('Val to be sent over channel: ', val)
+
+        # decrypt
+        dec = f.decrypt(token)
+
+        print('decrypted: ', dec)
         
         print('Connecting to host at ', host, ' on port ', port)
         s.connect((host,port))
@@ -58,10 +93,23 @@ class MyStreamListener(tweepy.StreamListener):
         print('Receiving data with size ', size)
         data = s.recv(size)
         s.close()
-        print('Received: ', data)
+        print('Raw received: ', data)
+
+        package = pickle.loads(data)
+
+        rx_hasher = hashlib.md5()
+        rx_hasher.update(package[0])
+        rx_checksum = rx_hasher.hexdigest()
+
+        if rx_checksum is package[1]:
+            print('Checksum was correct')
+        else:
+            print('Invalid checksum')
+
+        answer = f.decrypt(package[0])
 
         print('Speaking question')
-        os.system("espeak {}".format(data))
+        os.system("espeak {}".format(answer.decode('utf-8')))
 
 # create listener
 l = MyStreamListener()
