@@ -69,7 +69,7 @@ while True:
 	print("[Checkpoint] Decrypt: Using Key:", data[0], " | Plaintext:", question)
 	print("[Checkpoint] Speaking:" + question)
 	parsed = question.replace("$", "\$").replace("\"", "\\\"")
-	text2speech("\"" + question + "\"")
+	text2speech("\"" + parsed + "\"")
 	print("[Checkpoint] Sending question to Wolframalpha:", question)
 	answer = getfromwolfram(question)
 	print("[Checkpoint] Received answer from Wolframalpha:", answer)
