@@ -63,7 +63,6 @@ while True:
 		print("[Checkpoint] Checksum is VALID")
 	else:
 		print("[Checkpoint] Checksum is NOT VALID")
-		continue
 	f = Fernet(data[0])
 	question = f.decrypt(data[1]).decode('utf-8')
 	print("[Checkpoint] Decrypt: Using Key:", data[0], " | Plaintext:", question)
