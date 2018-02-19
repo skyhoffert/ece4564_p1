@@ -19,7 +19,7 @@ def getfromwolfram(question):
 	# grab the plaintext answer
 	try:
 		answer = next(result.results).text
-	except StopIteration:
+	except:
 		answer = "No Results"
 
 	# print and return
