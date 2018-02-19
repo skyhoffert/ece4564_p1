@@ -40,6 +40,8 @@ auth.set_access_token(access_token, access_token_secret)
 # connect to the API
 api = tweepy.API(auth)
 
+print('[Checkpoint] Listening for Tweets that contain: ', tag)
+
 # Tweepy stream listener class
 class MyStreamListener(tweepy.StreamListener):
     # whenever a new post is made with the search string, this function is called
@@ -50,9 +52,10 @@ class MyStreamListener(tweepy.StreamListener):
         # Cut out the substring so we have just a raw question
         res = res.replace(tag, '')
 
+        print('[Checkpoint] New Tweet: ', status.text, ' | User: ', status.user.screen_name)
+
         key = Fernet.generate_key()
 
-        print('Creating crypto key: ', key)
         f = Fernet(key)
 
         # encrypt
@@ -61,36 +64,32 @@ class MyStreamListener(tweepy.StreamListener):
         print('text to be sent: ', text)
         token = f.encrypt(text)
 
-        print('token: ', token)
-
+        print('[Checkpoint] Encrypt: Generated Key: ', key, ' | Ciphertext: ', token)
+        
         # hash
         hasher = hashlib.md5()
         hasher.update(token)
         checksum = hasher.hexdigest()
 
-        print('checksum: ', checksum)
+        print('[Checkpoint] Generated Md5 Checksum: ', checksum)
 
         # channel
         val = (key, token, checksum)
 
         val = pickle.dumps(val)
 
-        print('Val to be sent over channel: ', val)
-
-        print('Creating socket object')
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        print('Connecting to host at ', host, ' on port ', port)
+        
+        print('[Checkpoint] Connecting to ', host, ' on port ', port)
         s.connect((host,port))
 
-        print('Sending question to server')
+        print('[Checkpoint] Sending data: ', val)
         s.send(val)
 
-        print('Receiving data with size ', size)
         data = s.recv(size)
         s.close()
         del s
-        print('Raw received: ', data)
+        print('[Checkpoint] Received data: ', data)
 
         package = pickle.loads(data)
 
@@ -101,14 +100,14 @@ class MyStreamListener(tweepy.StreamListener):
         print('package[1]: ', package[1])
         print('Checksum: ', rx_checksum)
         if rx_checksum == package[1]:
-            print('Checksum was correct')
+            print('[Checkpoint] Checksum is valid')
         else:
-            print('Invalid checksum')
+            print('[Checkpoint] Checksum is invalid')
 
+        print('[Checkpoint] Decrypt using key: ', key)
         answer = f.decrypt(package[0])
 
-        print('Speaking answer: ', answer)
-        print('Str answer: ', answer.decode('utf-8'))
+        print('[Checkpoint] Speaking: ', answer.decode('utf-8'))
         os.system("espeak \"{}\" 2>/dev/null".format(answer.decode('utf-8')))
 
 # create listener
