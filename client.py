@@ -34,8 +34,6 @@ port = arguments.port
 size = arguments.size
 tag  = arguments.hashtag
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
 # set up authentication with clientKeys file
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
@@ -79,20 +77,19 @@ class MyStreamListener(tweepy.StreamListener):
 
         print('Val to be sent over channel: ', val)
 
-        # decrypt
-        dec = f.decrypt(token)
+        print('Creating socket object')
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        print('decrypted: ', dec)
-        
         print('Connecting to host at ', host, ' on port ', port)
         s.connect((host,port))
 
         print('Sending question to server')
-        s.send(res)
+        s.send(val)
 
         print('Receiving data with size ', size)
         data = s.recv(size)
         s.close()
+        del s
         print('Raw received: ', data)
 
         package = pickle.loads(data)
@@ -101,15 +98,18 @@ class MyStreamListener(tweepy.StreamListener):
         rx_hasher.update(package[0])
         rx_checksum = rx_hasher.hexdigest()
 
-        if rx_checksum is package[1]:
+        print('package[1]: ', package[1])
+        print('Checksum: ', rx_checksum)
+        if rx_checksum == package[1]:
             print('Checksum was correct')
         else:
             print('Invalid checksum')
 
         answer = f.decrypt(package[0])
 
-        print('Speaking question')
-        os.system("espeak {}".format(answer.decode('utf-8')))
+        print('Speaking answer: ', answer)
+        print('Str answer: ', answer.decode('utf-8'))
+        os.system("espeak \"{}\" 2>/dev/null".format(answer.decode('utf-8')))
 
 # create listener
 l = MyStreamListener()
