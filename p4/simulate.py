@@ -7,6 +7,7 @@
 # Must be run with python 2.7
 
 import sys
+import math
 
 # util functions ---------------------------------------------------------------------------------------------------------------
 def print_smart( val, debug=False, error=False, end='\n', prefix=True ):
@@ -19,6 +20,11 @@ def print_smart( val, debug=False, error=False, end='\n', prefix=True ):
 	sys.stdout.write( val )
 	sys.stdout.flush()
 
+# converts a hex string to an integer
+def hexstr_to_int( val ):
+	return int( val, 0 )
+	
+
 # classes ----------------------------------------------------------------------------------------------------------------------
 class Cache():
 	'''Class to hold a variety of different cache designs'''
@@ -28,11 +34,82 @@ class Cache():
 		self._block_size = block_size # size of a block, in bytes
 		self._placement = placement   # type of mapping as a string
 		self._policy = policy         # type of write policy as a string
+		
+		# calculate bits for each address part
+		self._bits_offset = int( math.log( self._block_size, 2 ) )
+		
+		num_ways = 0
+		if self._placement == 'DM':
+			self._bits_index  = int( math.log( self._size / self._block_size, 2 ) )
+			num_ways = 1
+		elif self._placement == '2W':
+			self._bits_index  = int( math.log( self._size / (2 * self._block_size), 2 ) )
+			num_ways = 2
+		elif self._placement == '4W':
+			self._bits_index  = int( math.log( self._size / (4 * self._block_size), 2 ) )
+			num_ways = 4
+		elif self._placement == 'FA':
+			self._bits_index = 0
+			num_ways = int( self._size / self._block_size )
+			
+		self._bits_tag    = 32 - self._bits_offset - self._bits_index
+		
+		# statistic variables
+		self._hit_rate = 0.0
+		self._mem_to_cache = 0
+		self._cache_to_mem = 0
+		
+		# the way to store tags and valid bits, a list of dicts
+		self._cache = []
+		
+		# for fully associative, there is only one cache "set"
+		if self._bits_index is 0:
+			self._cache.append( { 'lru': 0, 'ways': [] } )
+			for j in range(0, num_ways):
+					self._cache[0]['ways'].append( { 'valid_bit': 0, 'dirty_bit': 0, 'tag': 0 } )
+		else:
+			# other mappings have many sets
+			for i in range(0, pow(2, self._bits_index)):
+				self._cache.append( { 'lru': 0, 'ways': [] } )
+				for j in range(0, num_ways):
+					self._cache[i]['ways'].append( { 'valid_bit': 0, 'dirty_bit': 0, 'tag': 0 } )
+
+	# splits an integer into the correct bits
+	# returns tuple ( <offset>, <set>, <tag> )
+	def split_to_vals(self, val):
+		mask = 0xFFFFFFFF
+		off =  val &  (mask >> (32-self._bits_offset))
+		tag = (val &  (mask << (32-self._bits_tag))) >> (32-self._bits_tag)
+		set = (val & ((mask >> (32-self._bits_index) << self._bits_offset))) >> self._bits_offset
+		return ( off, set, tag )
 	
 	def read(self, addr):
+		# get the values from this address
+		res = self.split_to_vals( addr )
+		
+		# check the valid bit
+		# TODO
+		
+		# check if tag matches
+		# TODO
+		
+		# memory stuff
+		# TODO
+	
 		return
 	
 	def write(self, addr):
+		# get the values from this address
+		res = self.split_to_vals( addr )
+		
+		# check the valid bit
+		# TODO
+		
+		# check if tag matches
+		# TODO
+		
+		# memory stuff
+		# TODO
 		return
 	
 	def get_hit_rate(self):
@@ -43,6 +120,20 @@ class Cache():
 	
 	def get_cache_to_mem(self):
 		return
+	
+	def __str__(self):
+		val =       'Cache size:  {}\n'.format( self._size )
+		val = val + 'Block size:  {}\n'.format( self._block_size )
+		val = val + 'Placement:   {}\n'.format( self._placement )
+		val = val + 'Policy:      {}\n'.format( self._policy )
+		val = val + 'Offset bits: {}\n'.format( self._bits_offset )
+		val = val + 'Index bits:  {}\n'.format( self._bits_index )
+		val = val + 'Tag bits:    {}\n'.format( self._bits_tag )
+		val = val + 'Hit rate:    {}\n'.format( self._hit_rate )
+		val = val + 'CacheToMem:  {}\n'.format( self._cache_to_mem )
+		val = val + 'MemToCache:  {}\n'.format( self._mem_to_cache )
+		val = val + 'Cache at 0:  {}'.format( self._cache[0] )
+		return val
 	
 # main program -----------------------------------------------------------------------------------------------------------------
 def main():
@@ -69,6 +160,8 @@ def main():
 				for policy in ['WB', 'WT']:
 					caches.append( Cache(size=size, block_size=block_size, placement=placement, policy=policy) )
 	
+	print_smart( 'Opening input file.' )
+	
 	# open the input file
 	try:
 		f_in  = open( input_filename,  'r' )
@@ -76,15 +169,20 @@ def main():
 		print_smart( 'Could not open given input filename: "{}". Exiting...'.format(input_filename), error=True )
 		sys.exit( 1 )
 	
-	print_smart( 'Opening input file.' )
-	
-	# iterate through input file
+	# iterate through input file, reading and writing
 	for line in f_in.readlines():
 		tokenized = line.rstrip().split(' ')
 		if tokenized[0] == 'read':
-			pass
+			for cache in caches:
+				cache.read( hexstr_to_int(tokenized[1]) )
 		elif tokenized[0] == 'write':
-			pass
+			for cache in caches:
+				cache.write( hexstr_to_int(tokenized[1]) )
+	
+	# DEBUG
+	cache_num = 0
+	print_smart( 'Hit rate for cache {}: {}'.format(cache_num, caches[cache_num].get_hit_rate()), debug=True )
+	print_smart( 'Cache {}:\n{}'.format(cache_num, caches[cache_num]), debug=True )
 	
 	# don't forget to close input file!
 	f_in.close()
@@ -94,6 +192,7 @@ def main():
 	
 	# TODO
 	
+	# close output file as well
 	f_out.close()
 
 # this is called on execution --------------------------------------------------------------------------------------------------
