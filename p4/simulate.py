@@ -79,9 +79,10 @@ class Cache():
     # returns tuple ( <offset>, <set>, <tag> )
     def split_to_vals(self, val):
         mask = 0xFFFFFFFF
-        off =  val &  (mask >> (32-self._bits_offset))
-        tag = (val &  (mask << (32-self._bits_tag))) >> (32-self._bits_tag)
-        set = (val & ((mask >> (32-self._bits_index) << self._bits_offset))) >> self._bits_offset
+        off = int(val &  (mask >> (32-self._bits_offset)))
+        tag = int(val &  (mask << (32-self._bits_tag))) >> (32-self._bits_tag)
+        set = int(val & ((mask >> (32-self._bits_index) << self._bits_offset))) >> self._bits_offset
+        
         return ( off, set, tag )
     
     def read(self, addr):
@@ -91,18 +92,48 @@ class Cache():
         print_smart( 'Reading', debug=True )
         print_smart( 'Accessing cache line {}'.format( res[1] ), debug=True )
         print_smart( 'Looks like: {}'.format( self._cache[res[1]]['ways'][self._cache[res[1]]['lru']] ), debug=True )
+        print_smart( 'For lru: {}'.format( self._cache[res[1]]['lru'] ), debug=True )
         
-        # check the valid bit
-        if not self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit']:
+        # check all possible ways
+        way = None
+        way_num = -1
+        for i, w in enumerate( self._cache[res[1]]['ways'] ):
+            if w['tag'] == res[2]:
+                if w['valid_bit']:
+                    way = w
+                    way_num = i
+                    self._hits += 1
+                    break
+                   
+        # if there was no way, miss
+        if way is None:
             self._misses += 1
-        else:
-            # check the tag
-            if self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['tag'] != res[2]:
-                self._misses += 1
-            else:
-                # tag and valid bit are good, we hit
-                self._hits += 1
                 
+            # on miss, update tag and valid bit at lru
+            self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit'] = 1
+            self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['tag'] = res[2]
+            
+            # on miss, update lru
+            lru = self._cache[res[1]]['lru']
+            if lru+1 >= len( self._cache[res[1]]['ways'] ):
+                lru = 0
+            else:
+                lru += 1
+            self._cache[res[1]]['lru'] = lru
+            
+            # if missed, read from memory
+            # TODO -- make sure this is correct
+            self._mem_to_cache += self._block_size
+        else:
+            # on hit, check if update to lru is necessary
+            if self._cache[res[1]]['lru'] == i:
+                lru = i
+                if lru+1 >= len( self._cache[res[1]]['ways'] ):
+                    lru = 0
+                else:
+                    lru += 1
+                self._cache[res[1]]['lru'] = lru
+        
         # still not sure about memory stuff here?
         # TODO -- memory
     
@@ -118,6 +149,8 @@ class Cache():
         
         # check the valid bit
         # TODO -- figure out some stuff for writing
+        # TODO -- write from mem to cache on write miss
+        # TODO -- write to mem when block is dirty
         if not self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit']:
             self._misses += 1
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit'] = 1
@@ -131,18 +164,20 @@ class Cache():
                 self._hits += 1
         
         # memory stuff
-        # TODO -- memory stuff
+        if self._policy == 'WT':
+            # always write to mem for write-through
+            self._cache_to_mem += self._block_size
         
         return
     
     def get_hit_rate(self):
-        return
+        return float( float(self._hits) / float( self._hits + self._misses ) )
     
     def get_mem_to_cache(self):
-        return
+        return self._mem_to_cache
     
     def get_cache_to_mem(self):
-        return
+        return self._cache_to_mem
     
     def __str__(self):
         val =       'Cache size:  {}\n'.format( self._size )
@@ -205,6 +240,7 @@ def main():
     
     # DEBUG
     cache_num = 0
+    print_smart( 'Results: ============================================================================', debug=True )
     print_smart( 'Hit rate for cache {}: {}'.format(cache_num, caches[cache_num].get_hit_rate()), debug=True )
     print_smart( 'Cache {}:\n{}'.format(cache_num, caches[cache_num]), debug=True )
     
@@ -214,7 +250,8 @@ def main():
     # open the output file
     f_out = open( output_filename, 'w' )
     
-    # TODO
+    for cache in caches:
+        f_out.write( '{} {} {} {} {} {} {}\n'.format(cache._size, cache._block_size, cache._placement, cache._policy, cache.get_hit_rate(), cache.get_mem_to_cache(), cache.get_cache_to_mem()) )
     
     # close output file as well
     f_out.close()
