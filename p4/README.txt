@@ -11,6 +11,5 @@ Where the arguments:
         You do not need to supply an output filename if this argument is used.
     <output_filename> is an optional string for the filename of the output file. Ex: test1.result
         To use this argument, both input and output filenames must be used. You can't do just output file.
-
-Other Notes:
-    
+        
+You can run the file without arguments and it will look for test.trace and output to test.result.

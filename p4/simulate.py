@@ -74,6 +74,9 @@ class Cache():
                 self._cache.append( { 'lru': 0, 'ways': [] } )
                 for j in range(0, num_ways):
                     self._cache[i]['ways'].append( { 'valid_bit': 0, 'dirty_bit': 0, 'tag': 0 } )
+        
+        # if self._size == 1024 and self._placement is 'DM':
+            # print_smart( 'off bits {}, set bits {}, tag bits {}'.format(self._bits_offset, self._bits_index, self._bits_tag), debug=True )
 
     # splits an integer into the correct bits
     # returns tuple ( <offset>, <set>, <tag> )
