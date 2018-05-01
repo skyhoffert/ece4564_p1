@@ -89,10 +89,10 @@ class Cache():
         # get the values from this address
         res = self.split_to_vals( addr )
         
-        print_smart( 'Reading', debug=True )
-        print_smart( 'Accessing cache line {}'.format( res[1] ), debug=True )
-        print_smart( 'Looks like: {}'.format( self._cache[res[1]]['ways'][self._cache[res[1]]['lru']] ), debug=True )
-        print_smart( 'For lru: {}'.format( self._cache[res[1]]['lru'] ), debug=True )
+        #print_smart( 'Reading', debug=True )
+        #print_smart( 'Accessing cache line {}'.format( res[1] ), debug=True )
+        #print_smart( 'Looks like: {}'.format( self._cache[res[1]]['ways'][self._cache[res[1]]['lru']] ), debug=True )
+        #print_smart( 'For lru: {}'.format( self._cache[res[1]]['lru'] ), debug=True )
         
         # check all possible ways
         way = None
@@ -103,6 +103,9 @@ class Cache():
                     way = w
                     way_num = i
                     self._hits += 1
+                    
+                    #if self._size == 1024 and self._placement == 'DM':
+                        #print_smart( 'Hit on address {}'.format(addr), debug=True )
                     break
                    
         # if there was no way, miss
@@ -143,25 +146,49 @@ class Cache():
         # get the values from this address
         res = self.split_to_vals( addr )
         
-        print_smart( 'Writing', debug=True )
-        print_smart( 'Accessing cache line {}'.format( res[1] ), debug=True )
-        print_smart( 'Looks like: {}'.format( self._cache[res[1]]['ways'][self._cache[res[1]]['lru']] ), debug=True )
+        # check all possible ways
+        way = None
+        way_num = -1
+        for i, w in enumerate( self._cache[res[1]]['ways'] ):
+            if w['tag'] == res[2]:
+                if w['valid_bit']:
+                    way = w
+                    way_num = i
+                    self._hits += 1
+                    
+                    #if self._size == 1024 and self._placement == 'DM':
+                        #print_smart( 'Hit on address {}'.format( hex(addr) ), debug=True )
+                        
+                    break
         
-        # check the valid bit
-        # TODO -- figure out some stuff for writing
-        # TODO -- write from mem to cache on write miss
-        # TODO -- write to mem when block is dirty
-        if not self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit']:
+        # if there was no way, miss
+        if way is None:
             self._misses += 1
+                
+            # on miss, update tag and valid bit at lru
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit'] = 1
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['tag'] = res[2]
-        else:
-            # check the tag
-            if self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['tag'] != res[2]:
-                self._misses += 1
+            
+            # on miss, update lru
+            lru = self._cache[res[1]]['lru']
+            if lru+1 >= len( self._cache[res[1]]['ways'] ):
+                lru = 0
             else:
-                # tag and valid bit are good, we hit
-                self._hits += 1
+                lru += 1
+            self._cache[res[1]]['lru'] = lru
+            
+            # if missed, read from memory
+            # TODO -- make sure this is correct
+            #self._mem_to_cache += self._block_size
+        else:
+            # on hit, check if update to lru is necessary
+            if self._cache[res[1]]['lru'] == i:
+                lru = i
+                if lru+1 >= len( self._cache[res[1]]['ways'] ):
+                    lru = 0
+                else:
+                    lru += 1
+                self._cache[res[1]]['lru'] = lru
         
         # memory stuff
         if self._policy == 'WT':
@@ -230,7 +257,10 @@ def main():
     
     # iterate through input file, reading and writing
     for line in f_in.readlines():
-        tokenized = line.rstrip().split(' ')
+        if '\t' in line:
+            tokenized = line.rstrip().split('\t')
+        else:
+            tokenized = line.rstrip().split(' ')
         if tokenized[0] == 'read':
             for cache in caches:
                 cache.read( hexstr_to_int(tokenized[1]) )
@@ -239,7 +269,7 @@ def main():
                 cache.write( hexstr_to_int(tokenized[1]) )
     
     # DEBUG
-    cache_num = 0
+    cache_num = 4
     print_smart( 'Results: ============================================================================', debug=True )
     print_smart( 'Hit rate for cache {}: {}'.format(cache_num, caches[cache_num].get_hit_rate()), debug=True )
     print_smart( 'Cache {}:\n{}'.format(cache_num, caches[cache_num]), debug=True )
@@ -251,7 +281,13 @@ def main():
     f_out = open( output_filename, 'w' )
     
     for cache in caches:
-        f_out.write( '{} {} {} {} {} {} {}\n'.format(cache._size, cache._block_size, cache._placement, cache._policy, cache.get_hit_rate(), cache.get_mem_to_cache(), cache.get_cache_to_mem()) )
+        f_out.write( '{}\t'.format(cache._size) )
+        f_out.write( '{}\t'.format(cache._block_size) )
+        f_out.write( '{}\t'.format(cache._placement) )
+        f_out.write( '{}\t'.format(cache._policy) )
+        f_out.write( '{:0.2f}\t'.format(cache.get_hit_rate()) )
+        f_out.write( '{}\t'.format(cache.get_mem_to_cache()) )
+        f_out.write( '{}\n'.format(cache.get_cache_to_mem()) )
     
     # close output file as well
     f_out.close()
