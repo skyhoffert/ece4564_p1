@@ -111,7 +111,13 @@ class Cache():
         # if there was no way, miss
         if way is None:
             self._misses += 1
-                
+            
+            # check dirty bit only if WB
+            if self._policy == 'WB':
+                if self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] == 1:
+                    self._cache_to_mem += self._block_size
+                    self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] = 0
+            
             # on miss, update tag and valid bit at lru
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit'] = 1
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['tag'] = res[2]
@@ -125,9 +131,13 @@ class Cache():
             self._cache[res[1]]['lru'] = lru
             
             # if missed, read from memory
-            # TODO -- make sure this is correct
             self._mem_to_cache += self._block_size
         else:
+            # on hit, modify dirty bit
+            # if self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] == 1:
+                # self._cache_to_mem += self._block_size
+                # self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] = 1
+                
             # on hit, check if update to lru is necessary
             if self._cache[res[1]]['lru'] == i:
                 lru = i
@@ -155,15 +165,20 @@ class Cache():
                     way = w
                     way_num = i
                     self._hits += 1
-                    
-                    #if self._size == 1024 and self._placement == 'DM':
-                        #print_smart( 'Hit on address {}'.format( hex(addr) ), debug=True )
-                        
                     break
         
+        # set dirty bit only if WB
+        if self._policy == 'WB':
+            self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] = 1
+                
         # if there was no way, miss
         if way is None:
             self._misses += 1
+                
+            # set dirty bit only if WB
+            if self._policy == 'WB':
+                if self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['dirty_bit'] == 1:
+                    self._cache_to_mem += 4
                 
             # on miss, update tag and valid bit at lru
             self._cache[res[1]]['ways'][self._cache[res[1]]['lru']]['valid_bit'] = 1
@@ -178,8 +193,7 @@ class Cache():
             self._cache[res[1]]['lru'] = lru
             
             # if missed, read from memory
-            # TODO -- make sure this is correct
-            #self._mem_to_cache += self._block_size
+            self._mem_to_cache += self._block_size
         else:
             # on hit, check if update to lru is necessary
             if self._cache[res[1]]['lru'] == i:
@@ -193,7 +207,7 @@ class Cache():
         # memory stuff
         if self._policy == 'WT':
             # always write to mem for write-through
-            self._cache_to_mem += self._block_size
+            self._cache_to_mem += 4
         
         return
     
@@ -269,7 +283,7 @@ def main():
                 cache.write( hexstr_to_int(tokenized[1]) )
     
     # DEBUG
-    cache_num = 4
+    cache_num = 5
     print_smart( 'Results: ============================================================================', debug=True )
     print_smart( 'Hit rate for cache {}: {}'.format(cache_num, caches[cache_num].get_hit_rate()), debug=True )
     print_smart( 'Cache {}:\n{}'.format(cache_num, caches[cache_num]), debug=True )
